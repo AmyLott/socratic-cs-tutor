@@ -84,7 +84,7 @@ def analyze_student_code(language: str, student_code: str, student_question: str
     """
 
     # Try primary model first, then fall back to lite model if overloaded (503)
-    models_to_try = ["gemini-3.8-flash", "gemini-3.8-pro"]
+    models_to_try = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
 
     for model_name in models_to_try:
         for attempt in range(2):
