@@ -71,7 +71,7 @@ def analyze_student_code(language: str, student_code: str, student_question: str
     if genai is None:
         raise ImportError("google-genai package not installed. Run: pip install -r requirements.txt")
 
-    client = genai.Client(api_key=api_key, http_options={"timeout": 15000})
+    client = genai.Client(api_key=api_key, http_options={"timeout": 25000})
 
     user_prompt = f"""
     Language: {language}
@@ -84,7 +84,7 @@ def analyze_student_code(language: str, student_code: str, student_question: str
     """
 
     # Try primary model first, then fall back to lite model if overloaded (503)
-    models_to_try = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
+    models_to_try = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.7-flash"]
 
     for model_name in models_to_try:
         for attempt in range(2):
@@ -102,11 +102,12 @@ def analyze_student_code(language: str, student_code: str, student_question: str
                 data = json.loads(response.text)
                 return TutorResponse(**data)
             except Exception as e:
-                if "503" in str(e) or "UNAVAILABLE" in str(e):
-                    print(f"[Notice] {model_name} busy (503). Retrying...")
-                    time.sleep(4)
-                else:
-                    raise e
+             err_msg = str(e).lower()
+             if "503" in err_msg or "unavailable" in err_msg or "timeout" in err_msg or "timed out" in err_msg:
+                 print(f"[Notice] {model_name} busy or timed out. Trying next...")
+                 time.sleep(2)
+             else:
+                 raise e
 
     raise RuntimeError("All Gemini models are currently experiencing high traffic (503). Please try again shortly.")
     data = json.loads(response.text)
