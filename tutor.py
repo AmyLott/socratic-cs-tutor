@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import argparse
 from pydantic import BaseModel, Field
@@ -56,7 +57,7 @@ def get_demo_response(student_code: str) -> TutorResponse:
 
 
 def analyze_student_code(language: str, student_code: str, student_question: str, demo: bool = False) -> TutorResponse:
-    """Sends student code to the LLM with system guardrails and structured JSON schema."""
+    """Sends student code to the LLM with system guardrails, structured JSON schema, and 503 retry fallback."""
     if demo:
         return get_demo_response(student_code)
 
@@ -64,7 +65,7 @@ def analyze_student_code(language: str, student_code: str, student_question: str
     if not api_key:
         raise EnvironmentError(
             "GEMINI_API_KEY environment variable not set. "
-            "Set it via 'export GEMINI_API_KEY=your_key' or run with --demo."
+            "Set it via 'set GEMINI_API_KEY=your_key' or run with --demo."
         )
 
     if genai is None:
@@ -82,15 +83,32 @@ def analyze_student_code(language: str, student_code: str, student_question: str
     ```
     """
 
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=user_prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION,
-            response_mime_type="application/json",
-            response_schema=TutorResponse,
-            temperature=0.3,  # Low temperature for consistent, reliable pedagogical guardrails
-        ),
+    # Try primary model first, then fall back to lite model if overloaded (503)
+    models_to_try = ["gemini-3.8-flash", "gemini-3.8-flash-lite"]
+
+    for model_name in models_to_try:
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_INSTRUCTION,
+                        response_mime_type="application/json",
+                        response_schema=TutorResponse,
+                        temperature=0.3,
+                    ),
+                )
+                data = json.loads(response.text)
+                return TutorResponse(**data)
+            except Exception as e:
+                if "503" in str(e) or "UNAVAILABLE" in str(e):
+                    print(f"[Notice] {model_name} busy (503). Retrying...")
+                    time.sleep(2)
+                else:
+                    raise e
+
+    raise RuntimeError("All Gemini models are currently experiencing high traffic (503). Please try again shortly.")
     )
 
     data = json.loads(response.text)
