@@ -71,7 +71,7 @@ def analyze_student_code(language: str, student_code: str, student_question: str
     if genai is None:
         raise ImportError("google-genai package not installed. Run: pip install -r requirements.txt")
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(api_key=api_key, http_options={"timeout": 15000})
 
     user_prompt = f"""
     Language: {language}
@@ -138,10 +138,11 @@ for (int i = 0; i <= scores.length; i++) {
         lines = []
         while True:
             line = input()
-            if line.strip() == "END":
+            if line.strip().upper() == "END":
                 break
             lines.append(line)
         code = "\n".join(lines)
+        print("\nAnalyzing your code with Socratic guardrails...\n")
         result = analyze_student_code(args.lang, code, question, demo=False)
 
     print("--- Structured Tutor Guidance ---")
