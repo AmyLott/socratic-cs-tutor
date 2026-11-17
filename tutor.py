@@ -109,7 +109,7 @@ def analyze_student_code(language: str, student_code: str, student_question: str
                     raise e
 
     raise RuntimeError("All Gemini models are currently experiencing high traffic (503). Please try again shortly.")
-    )
+    
 
     data = json.loads(response.text)
     return TutorResponse(**data)
