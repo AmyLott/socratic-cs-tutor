@@ -84,7 +84,7 @@ def analyze_student_code(language: str, student_code: str, student_question: str
     """
 
     # Try primary model first, then fall back to lite model if overloaded (503)
-    models_to_try = ["gemini-3.8-flash", "gemini-3.8-flash-lite"]
+    models_to_try = ["gemini-3.8-flash", "gemini-3.8-pro"]
 
     for model_name in models_to_try:
         for attempt in range(2):
@@ -104,13 +104,11 @@ def analyze_student_code(language: str, student_code: str, student_question: str
             except Exception as e:
                 if "503" in str(e) or "UNAVAILABLE" in str(e):
                     print(f"[Notice] {model_name} busy (503). Retrying...")
-                    time.sleep(2)
+                    time.sleep(4)
                 else:
                     raise e
 
     raise RuntimeError("All Gemini models are currently experiencing high traffic (503). Please try again shortly.")
-    
-
     data = json.loads(response.text)
     return TutorResponse(**data)
 
